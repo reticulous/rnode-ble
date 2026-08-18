@@ -1,0 +1,48 @@
+# rnode-ble — a Bluetooth door onto the RNode endpoint iface-lora already has.
+#
+# A Nordic UART Service, advertised as "RNode xxxx", wired straight onto
+# RNODE_ITS_PORT. Sideband and any RNS RNodeInterface connect to it and get the
+# same KISS stream the USB and TCP doors carry. There is no KISS code here, no
+# radio knowledge and no second session policy: this straddle moves bytes.
+schema_version: 1
+name: reticulous/rnode-ble
+prefix: rnode_ble
+version: 0.0.0
+firmware: esp-idf
+platforms: [idf]
+requires:
+  # The radio, the endpoint and RNODE_ITS_PORT.
+  - reticulous/iface-lora
+  # The Bluetooth stack. spangap-ble owns the host, the advertising instance,
+  # the bond store and the connection budget; this straddle is a consumer of
+  # ble.h and initialises nothing itself.
+  - spangap/spangap-ble
+
+# Boot-registered service: RnodeBleService::onInit() queues the Nordic UART
+# Service with spangap-ble (which registers it when the host starts), registers
+# the `rnode-ble` CLI verb and spawns the door task. `requires:` puts both
+# spangap-ble's and iface-lora's onInit() ahead of it in dependency-topo order,
+# so the GATT registry and the endpoint's ITS port already exist.
+services:
+  - { class: RnodeBleService, header: rnode_ble.h }
+
+# The switch sits under iface-lora's own "RNode endpoint" heading — the section
+# label must match that string exactly, since sections merge on exact match and
+# a near-miss silently becomes a second heading. The KEY stays in spangap-ble's
+# s.ble.* namespace: pane path and key namespace are independent, and an
+# operator should see one Bluetooth namespace.
+settings:
+  - at:
+      - { id: reticulum }
+      - { id: lora }
+    rows:
+      - section: "RNode endpoint"
+      - switch: { label: "Bluetooth", key: "s.ble.rnode.enable", default: 0 }
+      - caption: "Lets a phone attach to this RNode over Bluetooth. Pair the phone first, under Bluetooth."
+      - info:
+          rows:
+            - value: { label: "Bluetooth", key: "ble.rnode.state_text" }
+            - value: { label: "BT name", key: "ble.rnode.name" }
+              when_key: ble.rnode.name
+            - value: { label: "BT traffic", key: "ble.rnode.traffic" }
+              when_key: ble.rnode.up
