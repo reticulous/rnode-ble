@@ -1,7 +1,7 @@
 # rnode-ble
 
 ```
-s.ble.rnode.enable = 0?  yes → nothing advertises, nothing attaches. Stop.
+s.lora.rnode.ble = 0?    yes → nothing advertises, nothing attaches. Stop.
  ↓ no
 bleUp() + reserve 1 connection + claim the advertisement
  ↓                       advertising as "RNode xxxx", connectable
@@ -25,15 +25,14 @@ hardware, and gets exactly the stream the USB and TCP doors carry.
 There is no KISS code here, no radio knowledge and no second session policy.
 This straddle moves bytes onto `RNODE_ITS_PORT` and does nothing else.
 
-**Status: never exercised against a real client, and currently inoperative.**
-[spangap-ble](../spangap-ble) rotates the adapter address at every Bluetooth
-start and after every disconnect (mesh peers key per-address state by it, and
-an address presented twice reconnects into whatever stale entries a peer
-failed to clean), and the RNS client connects strictly to the address the
-phone bonded — so a bond points nowhere almost immediately. Making this door work is the first
-item on the Bluetooth plan ([plans/ble.md](../plans/ble.md)): spangap-ble must
-grow resolvable-private-address privacy — an identity resolving key
-distributed at bonding — so bonded peers resolve every new address.
+**Status: never exercised against a real client.**
+[spangap-ble](../spangap-ble)'s adapter address rotates as a resolvable
+private address over a persisted identity resolving key: the phone receives
+the key at bonding and resolves every rotation (and every reboot) back to one
+identity, which is exactly what the RNS client's connect-to-the-bonded-address
+behaviour needs. What remains is the acceptance test from
+[plans/ble.md](../plans/ble.md): a bonded phone staying attached, or
+reattaching unaided, across a rotation and across a reboot.
 
 ## Origins
 
@@ -65,7 +64,7 @@ paired devices and matches a name beginning `rnode ` case-insensitively; it
 never scans. So pair the phone first — the advertised name matters at pairing
 time, and after that only the address does.
 
-### Starts automatically
+### Starts automatically — and only when needed
 
 When `rnode-ble` is in the build it starts on its own; there is no init call to
 make. It `requires:` both [iface-lora](../iface-lora) and
@@ -76,13 +75,12 @@ both exist before its own `onInit()` runs.
 
 1. Put both straddles in the build:
    `spangap build --with spangap/spangap-ble --with reticulous/rnode-ble`.
-2. Turn the RNode endpoint on: `set s.lora.rnode.enable=1`.
-3. Turn this door on: `set s.ble.rnode.enable=1` (or the **Bluetooth** switch
-   under Reticulum → LoRa → RNode endpoint).
-4. Turn Bluetooth on and open the pairing window: `ble up`, then `ble pair 60`.
-5. Pair from the phone's Bluetooth settings inside that window. Pairing is Just
+   The door (`s.lora.rnode.ble`) is on by default — a door nobody has paired
+   with reaches nobody.
+2. Turn Bluetooth on and open the pairing window: `ble up`, then `ble pair 60`.
+3. Pair from the phone's Bluetooth settings inside that window. Pairing is Just
    Works — no passkey to compare.
-6. Point an RNS `RNodeInterface` at it. With no `ble_name` or `ble_addr` the
+4. Point an RNS `RNodeInterface` at it. With no `ble_name` or `ble_addr` the
    client matches any bonded device whose name starts with `rnode `:
 
 ```ini
@@ -108,7 +106,7 @@ persist.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `s.ble.rnode.enable` | `0` | Open the Bluetooth door. Live. The key lives in [spangap-ble](../spangap-ble)'s namespace so an operator sees one Bluetooth namespace; the settings *row* sits in iface-lora's RNode endpoint section, which is where an operator looks for it. |
+| `s.lora.rnode.ble` | `1` | Open the Bluetooth door. Live. The key sits beside the endpoint's other doors (`s.lora.rnode.serial` / `.tcp`) — one namespace for one endpoint, each transport its own switch — and this straddle owns and reads it; the settings row sits in iface-lora's RNode endpoint section, where an operator looks for it. |
 
 The endpoint itself — which radio it exposes, whether it is on at all — is
 [iface-lora](../iface-lora)'s `s.lora.rnode.*`, and the radio, the pairing
@@ -144,9 +142,9 @@ Pairing and bonds are `ble pair` / `ble bonds` / `ble forget`, in
 
 - **`rnode-ble` says `advertising` and the client never connects** — the phone
   is not bonded. `ble bonds`, then `ble pair 60` and pair again.
-- **`sessions … refused`** — the endpoint is off (`s.lora.rnode.enable`), or a
-  USB or TCP client already holds it. There is one RNode and the session is
-  first come, first served across every transport.
+- **`sessions … refused`** — a USB or TCP client already holds the endpoint.
+  There is one RNode and the session is first come, first served across every
+  transport.
 - **The client goes offline every few seconds** — the radio parameters in the
   interface config do not match what the radio can do. The client compares the
   configuration echo unconditionally and re-dials on a mismatch; see

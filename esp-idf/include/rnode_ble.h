@@ -16,7 +16,7 @@
 
 /** Boot-registered service: onInit() queues the Nordic UART Service with
  *  spangap-ble, registers the `rnode-ble` CLI verb and spawns the door task.
- *  Nothing runs until s.ble.rnode.enable is set. */
+ *  The door itself follows s.lora.rnode.ble (default on). */
 class RnodeBleService : public Service {
 public:
     void onInit() override;

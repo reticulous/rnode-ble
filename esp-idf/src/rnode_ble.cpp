@@ -392,7 +392,7 @@ static void onBleNotifyTx(const ble_event_t* ev) {
 /* ─────────────── reconcile ─────────────── */
 
 static void applyConfig(void) {
-    bool en = storageGetInt("s.ble.rnode.enable", 0) != 0;
+    bool en = storageGetInt("s.lora.rnode.ble", 1) != 0;
     s_enabled = en;
 
     if (!en) {
@@ -478,7 +478,7 @@ static void doorTaskMain(void*) {
     bleRegister(BLE_EV_SUBSCRIBE,  onBleSubscribe);
     bleRegister(BLE_EV_NOTIFY_TX,  onBleNotifyTx);
 
-    storageSubscribeChanges("s.ble.rnode", onCfgChange);
+    storageSubscribeChanges("s.lora.rnode", onCfgChange);
 
     for (;;) {
         while (itsPoll(0)) {}
@@ -505,6 +505,10 @@ void RnodeBleService::onInit() {
     bleGattAdd(NUS_SVCS);
 
     cliRegisterCmd("rnode-ble", cliRnodeBle);
+
+    /* The switch used to live at s.ble.rnode.enable; the door is
+     * s.lora.rnode.ble now, beside the endpoint's other doors. */
+    storageDeleteTree("s.ble.rnode.enable");
 
     storageBegin();
     storageSet("ble.rnode.state_text", "disabled");

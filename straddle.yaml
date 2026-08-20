@@ -28,16 +28,16 @@ services:
 
 # The switch sits under iface-lora's own "RNode endpoint" heading — the section
 # label must match that string exactly, since sections merge on exact match and
-# a near-miss silently becomes a second heading. The KEY stays in spangap-ble's
-# s.ble.* namespace: pane path and key namespace are independent, and an
-# operator should see one Bluetooth namespace.
+# a near-miss silently becomes a second heading. The key sits beside the
+# endpoint's other doors (s.lora.rnode.serial / .tcp / .ble): one namespace for
+# one endpoint, each transport its own switch.
 settings:
   - at:
       - { id: reticulum }
       - { id: lora }
     rows:
       - section: "RNode endpoint"
-      - switch: { label: "Bluetooth", key: "s.ble.rnode.enable", default: 0 }
+      - switch: { label: "Bluetooth", key: "s.lora.rnode.ble", default: 1 }
       - caption: "Lets a phone attach to this RNode over Bluetooth. Pair the phone first, under Bluetooth."
       - info:
           rows:
