@@ -26,19 +26,37 @@ requires:
 services:
   - { class: RnodeBleService, header: rnode_ble.h }
 
-# The switch sits under iface-lora's own "RNode endpoint" heading — the section
-# label must match that string exactly, since sections merge on exact match and
-# a near-miss silently becomes a second heading. The key sits beside the
-# endpoint's other doors (s.lora.rnode.serial / .tcp / .ble): one namespace for
-# one endpoint, each transport its own switch.
+# The switch sits in iface-lora's RNode-endpoint menu, under its "Doors"
+# heading — the title must match that string exactly, since heading groups
+# merge on an exact match and a near-miss silently becomes a second heading.
+# The key sits beside the endpoint's other transports (s.lora.rnode.serial /
+# .tcp / .ble): one namespace for one endpoint, each its own switch.
 settings:
   - at:
       - { id: reticulum }
-      - { id: lora }
+      - { id: rnode }
     rows:
-      - section: "RNode endpoint"
+      - heading: "Connect via"
       - switch: { label: "Bluetooth", key: "s.lora.rnode.ble", default: 1 }
-      - caption: "Lets a phone attach to this RNode over Bluetooth. Pair the phone first, under Bluetooth."
+      # Everything below is Bluetooth's, so it is here only while Bluetooth is.
+      # The gate is the ephemeral one rnode_ble.cpp publishes from the switch,
+      # not the switch's own key: a settings surface reads a published gate.
+      - section: "Bluetooth Settings"
+        when_key: ble.rnode.enabled
+      - dropdown:
+          label: "Bluetooth tx power"
+          key: "s.ble.rnode.txpower"
+          default: 9
+          options:
+            - { v: 0,  l: "0 dBm" }
+            - { v: 3,  l: "+3 dBm" }
+            - { v: 6,  l: "+6 dBm" }
+            - { v: 9,  l: "+9 dBm" }
+            - { v: 12, l: "+12 dBm" }
+            - { v: 15, l: "+15 dBm" }
+            - { v: 18, l: "+18 dBm" }
+            - { v: 20, l: "+20 dBm" }
+        when_key: ble.rnode.enabled
       - info:
           rows:
             - value: { label: "Bluetooth", key: "ble.rnode.state_text" }
@@ -46,3 +64,42 @@ settings:
               when_key: ble.rnode.name
             - value: { label: "BT traffic", key: "ble.rnode.traffic" }
               when_key: ble.rnode.up
+        when_key: ble.rnode.enabled
+      # Pairing lives with the thing a phone actually pairs WITH. spangap-ble
+      # owns the mechanism and the sentinels; any other consumer that needs a
+      # phone to bond states this block too, under its own heading.
+      - caption: "A phone can only pair with this device while the pairing window is open. Devices that have already paired reconnect at any time."
+        when_key: ble.rnode.enabled
+      # The sentinel is the ephemeral key `ble.pair` carrying the number of
+      # seconds — never `s.ble.pairing`: a dot-path write under a scalar would
+      # replace the scalar, and a sentinel is not configuration.
+      - buttons:
+          items:
+            - { label: "Pair for 60 s", do: { set: { key: "ble.pair", value: "60", edge: true } } }
+            - { label: "Close now",     do: { set: { key: "ble.pair", value: "0",  edge: true } } }
+        when_key: ble.rnode.enabled
+      - value: { label: "Pairing window", key: "ble.pairing_text" }
+        when_key: ble.rnode.enabled
+      # The bonds themselves, as a list: a count says a phone is paired, it does
+      # not say which, and it gives nobody a way to drop one. spangap-ble
+      # publishes the array and owns the ble.bond.* sentinel.
+      - list:
+          label: "Paired devices"
+          caption: "Remove one and it has to pair again."
+          key: ble.bondlist
+          id: id
+          item: "{addr}"
+          empty: "Nothing has paired with this device yet."
+          cmd: ble.bond
+          remove: { confirm: "Forget {addr}?" }
+        when_key: ble.rnode.enabled
+      - button:
+          label: "Forget all"
+          color: red
+          do:
+            dialog:
+              text: "Forget every paired device? Each one has to pair again."
+              buttons:
+                - { label: "Cancel" }
+                - { label: "Forget all", color: red, do: { set: { key: "ble.forget", value: "all", edge: true } } }
+        when_key: ble.rnode.enabled

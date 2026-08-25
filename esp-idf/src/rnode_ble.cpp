@@ -170,6 +170,10 @@ static void publish(void) {
     storageBegin();
     storageSet("ble.rnode.state_text", stateWord());
     storageSet("ble.rnode.up", s_its >= 0 ? 1 : 0);
+    /* The switch, as a plain truthy gate: the pane's Bluetooth settings exist
+     * only while Bluetooth is asked for, and a settings surface reads a
+     * published gate rather than a config key. */
+    storageSet("ble.rnode.enabled", s_enabled ? 1 : 0);
     if (s_advName[0]) storageSet("ble.rnode.name", s_advName);
     snprintf(buf, sizeof(buf), "in %u B \xC2\xB7 out %u B \xC2\xB7 %u session%s",
              (unsigned)(s_bytesIn & 0x7fffffff), (unsigned)(s_bytesOut & 0x7fffffff),
@@ -337,6 +341,9 @@ static void onBleDown(const ble_event_t*) {
 
 static void onBleConnect(const ble_event_t* ev) {
     if (ev->central) return;                 /* not our side of the world */
+    /* Ours: put it on the power this endpoint asks for rather than on whatever
+     * the loudest consumer on the radio needed for its advertising. */
+    bleConnOwner(TAG, ev->conn);
     /* 15-30 ms. The client's watchdog is transport-independent: 3 s with no
      * inbound byte re-sends CMD_DETECT, 9 s takes the interface offline. A
      * sleepy interval would kill an otherwise healthy idle session. */
@@ -406,6 +413,7 @@ static void applyConfig(void) {
     }
 
     bleSlotReserve(TAG, 1);
+    bleTxPower(TAG, storageGetInt("s.ble.rnode.txpower", 9));
     bleUp(TAG);
     if (!bleIsUp()) { publish(); return; }
 
@@ -479,6 +487,10 @@ static void doorTaskMain(void*) {
     bleRegister(BLE_EV_NOTIFY_TX,  onBleNotifyTx);
 
     storageSubscribeChanges("s.lora.rnode", onCfgChange);
+    /* The door's own transmit power sits in the Bluetooth namespace, so an
+     * operator sees one s.ble.* namespace whatever pane a row is on — which
+     * puts it outside the scope above. */
+    storageSubscribeChanges("s.ble.rnode",  onCfgChange);
 
     for (;;) {
         while (itsPoll(0)) {}

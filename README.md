@@ -2,6 +2,7 @@
 
 ```
 s.lora.rnode.ble = 0?    yes → nothing advertises, nothing attaches. Stop.
+                               (and, with nothing else asking, no radio)
  ↓ no
 bleUp() + reserve 1 connection + claim the advertisement
  ↓                       advertising as "RNode xxxx", connectable
@@ -75,9 +76,11 @@ both exist before its own `onInit()` runs.
 
 1. Put both straddles in the build:
    `spangap build --with spangap/spangap-ble --with reticulous/rnode-ble`.
-   The door (`s.lora.rnode.ble`) is on by default — a door nobody has paired
-   with reaches nobody.
-2. Turn Bluetooth on and open the pairing window: `ble up`, then `ble pair 60`.
+   Bluetooth (`s.lora.rnode.ble`) is on by default — a transport nobody has
+   paired with reaches nobody.
+2. Open the pairing window: **Reticulum Mesh → RNode → Pair for 60 s**, or
+   `ble pair 60`. That switch is also what turns the Bluetooth RADIO on: the
+   radio has no switch of its own and runs while something asks for it.
 3. Pair from the phone's Bluetooth settings inside that window. Pairing is Just
    Works — no passkey to compare.
 4. Point an RNS `RNodeInterface` at it. With no `ble_name` or `ble_addr` the
@@ -106,11 +109,13 @@ persist.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `s.lora.rnode.ble` | `1` | Open the Bluetooth door. Live. The key sits beside the endpoint's other doors (`s.lora.rnode.serial` / `.tcp`) — one namespace for one endpoint, each transport its own switch — and this straddle owns and reads it; the settings row sits in iface-lora's RNode endpoint section, where an operator looks for it. |
+| `s.lora.rnode.ble` | `1` | Attach over Bluetooth. Live. The key sits beside the endpoint's other transports (`s.lora.rnode.serial` / `.tcp`) — one namespace for one endpoint, each its own switch — and this straddle owns and reads it; the settings row sits in iface-lora's **RNode** menu under "Connect via", where an operator looks for it. It is also the Bluetooth radio's switch as far as a user is concerned: spangap-ble has none of its own and runs while a consumer asks for it. |
+| `s.ble.rnode.txpower` | `9` | Transmit power in dBm for this endpoint's own links (`bleTxPower`). In the `s.ble.*` namespace so an operator sees one Bluetooth namespace whatever pane the row is on. Live. |
 
 The endpoint itself — which radio it exposes, whether it is on at all — is
-[iface-lora](../iface-lora)'s `s.lora.rnode.*`, and the radio, the pairing
-window and the transmit power are [spangap-ble](../spangap-ble)'s `s.ble.*`.
+[iface-lora](../iface-lora)'s `s.lora.rnode.*`. The radio, the pairing window
+and the bond store are [spangap-ble](../spangap-ble)'s; this straddle's pane is
+where they are reached, because a phone pairs with THIS.
 
 ### Runtime readouts (ephemeral)
 
@@ -118,6 +123,7 @@ window and the transmit power are [spangap-ble](../spangap-ble)'s `s.ble.*`.
 |---|---|
 | `ble.rnode.state_text` | `disabled`, `waiting for Bluetooth`, `advertising`, `connected`, `attached` |
 | `ble.rnode.up` | `1` while a session holds the endpoint |
+| `ble.rnode.enabled` | `1` while `s.lora.rnode.ble` is on — the gate the pane's Bluetooth settings hang on, published rather than read off the config key |
 | `ble.rnode.name` | The advertised name, once the adapter address is known |
 | `ble.rnode.traffic` | Bytes each way and sessions opened, as one finished line |
 
