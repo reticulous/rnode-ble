@@ -127,7 +127,7 @@ where they are reached, because a phone pairs with THIS.
 | `ble.rnode.name` | The advertised name, once the adapter address is known |
 | `ble.rnode.traffic` | Bytes each way and sessions opened, as one finished line |
 
-### Command sentinels
+### Command keys
 
 None.
 
