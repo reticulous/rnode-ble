@@ -26,6 +26,11 @@ hardware, and gets exactly the stream the USB and TCP doors carry.
 There is no KISS code here, no radio knowledge and no second session policy.
 This straddle moves bytes onto `RNODE_ITS_PORT` and does nothing else.
 
+It is staged by [iface-lora](../iface-lora), not by a buildable: a door onto the
+radio belongs to the builds that have a radio, and the radio rides on the board
+that carries a modem. Drop it with `--without rnode-ble` and the endpoint keeps
+its serial and TCP doors.
+
 **Status: never exercised against a real client.**
 [spangap-ble](../spangap-ble)'s adapter address rotates as a resolvable
 private address over a persisted identity resolving key: the phone receives
